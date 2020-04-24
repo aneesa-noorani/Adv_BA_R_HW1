@@ -1,0 +1,269 @@
+---
+title: "Noorani_HW1_Code"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+if(!require('pacman'))install.packages('pacman')
+if(!require('e1071'))install.packages('e1071')
+if(!require('tidyverse'))install.packages('tidyverse')
+if(!require('caret'))install.packages('caret')
+pacman::p_load(e1071, ggplot2, caret, tidyverse, rmarkdown)
+search()
+
+```
+
+#1. Creating training & test data sets based on the Purchase column
+
+```{r}
+#reading data set in
+juice_df <- read.csv("juice.csv", header = TRUE)
+
+#drop columns D, E, N, Q, R
+juice_df <- juice_df[-c(4,5,14,17,18)]
+
+#1. Creating training & test sets
+set.seed(123)
+train.index <- createDataPartition(juice_df$Purchase, p=0.8, list = FALSE)
+train_df <- juice_df[train.index, ]
+test_df <- juice_df[-train.index, ]
+
+```
+
+#2. Fitting an SVM model, linear
+#Result explanation: we have 346 support vectors, which means we have 346 points in the data set that help define our
+end result hyperplane. More specifically, we have 173 on each side of the hyperplane.
+
+```{r SVM, kernel = "linear"}
+svm.linear <- svm(Purchase~., data=train_df, kernel = "linear", cost = 0.01)
+summary(svm.linear)
+
+```
+
+#3. Calculating training & test error rates
+#Test error rate: 0.17625
+#Training error rate: 0.155
+
+```{r prediction}
+#3. To get training & test error rates, need to do Performance Evaluation
+set.seed(123)
+    # prediction for training data set
+pred.linear.train <- predict(svm.linear, train_df)
+
+    # confusion matrix for training error rate
+conf.matrix.linear.train <- table(Predicted = pred.linear.train, Actual = train_df$Purchase)
+conf.matrix.linear.train
+
+      # accuracy for train data set
+(sum(diag(conf.matrix.linear.train))) / sum(conf.matrix.linear.train)
+
+  #prediction for test data set
+pred.linear.test <- predict(svm.linear, test_df)
+
+      # confusion matrix for test error rate
+conf.matrix.linear.test <- table(Predicted = pred.linear.test, Actual = test_df$Purchase)
+conf.matrix.linear.test
+
+        # accuracy for test data set
+(sum(diag(conf.matrix.linear.test))) / sum(conf.matrix.linear.test)
+
+```
+
+#4. Use the tune() function to select an optimal cost. Consider values in the range 0.01 to 10
+
+
+```{r hyperparametertuning}
+set.seed(123)
+tunesvm.train.linear <- tune(svm, Purchase~., data = train_df, kernel = 'linear',
+                 ranges = list(cost = seq(0.01,10,0.1)))
+#summary(tunesvm.train.linear)
+
+  ## Best SVM Model ##
+bestsvm.train.linear <- tunesvm.train.linear$best.model
+summary(bestsvm.train.linear)
+
+```
+
+#5. Compute and report the training and test error rates using this new value for cost
+
+#Test error rate: 0.16875
+#Training error rate: 0.165
+
+```{r hyperparametertuning error rates}
+set.seed(123)
+# prediction for training data set
+bestpred.linear.train.new <- predict(bestsvm.train.linear, train_df)
+
+    # confusion matrix for training error rate
+conf.matrix.linear.train.new <- table(Predicted = bestpred.linear.train.new,
+                                      Actual = train_df$Purchase)
+conf.matrix.linear.train.new
+
+      # accuracy for train data
+(sum(diag(conf.matrix.linear.train.new))) / sum(conf.matrix.linear.train.new)
+
+  #prediction for test data
+bestpred.linear.test.new <- predict(bestsvm.train.linear, test_df)
+
+# confusion matrix for test data
+conf.matrix.linear.test.new <- table(Predicted = bestpred.linear.test.new, 
+                                     Actual = test_df$Purchase)
+conf.matrix.linear.test.new
+
+  # accuracy for test data
+(sum(diag(conf.matrix.linear.test.new))) / sum(conf.matrix.linear.test.new)
+
+```
+
+#6. Repeat parts (2.) through (5.) using a support vector machine with a radial kernel.
+# Use the default value for gamma
+
+#original training error rate: 0.39
+#original test error rate: 0.39
+
+#tuned training error rate: 0.16
+#tuned test error rate: 0.165
+
+```{r kernel = "radial"}
+#running SVM model again, but for kernel = "radial"
+set.seed(123)
+svm.radial <- svm(Purchase~., data=train_df, kernel = "radial", cost = 0.01)
+summary(svm.radial)
+
+#prediction
+pred.radial.train <- predict(svm.radial, train_df)
+pred.radial.test <- predict(svm.radial, test_df)
+
+#CONFUSION MATRIX FOR initial prediction
+confmatrix.radial.train = table(Predicted = pred.radial.train, 
+                                  Actual = train_df$Purchase)
+  
+confmatrix.radial.test = table(Predicted = pred.radial.test, 
+                                  Actual = test_df$Purchase)
+  
+      # accuracy for training data
+(sum(diag(confmatrix.radial.train))) / sum(confmatrix.radial.train)
+
+    #accuracy for test data
+(sum(diag(confmatrix.radial.test))) / sum(confmatrix.radial.test)
+
+# ______________________TUNE RADIAL_______________________
+
+#tune function again
+tunesvm.radial <- tune(svm, Purchase~., data = train_df, kernel = "radial",
+                 ranges = list(cost = seq(0.01,10, 0.1)))
+
+  ## Best SVM Model ##
+svm.radial.tune <- tunesvm.radial$best.model
+summary(svm.radial.tune)
+
+    # prediction for training data set
+bestpred.radial.train <- predict(svm.radial.tune, train_df)
+
+    # confusion matrix for training error rate
+confmatrix.radial.train.tuned <- table(Predicted = bestpred.radial.train, 
+                                  Actual = train_df$Purchase)
+confmatrix.radial.train.tuned
+
+      # accuracy for training data
+(sum(diag(confmatrix.radial.train.tuned))) / sum(confmatrix.radial.train.tuned)
+
+    #prediction for test data
+bestpred.radial.test <- predict(svm.radial.tune, test_df)
+
+    # confusion matrix for test error data
+confmatrix.radial.test.tuned <- table(Predicted = bestpred.radial.test, 
+                                      Actual = test_df$Purchase)
+confmatrix.radial.test.tuned
+
+    # accuracy for test data
+(sum(diag(confmatrix.radial.test.tuned))) / sum(confmatrix.radial.test.tuned)
+
+```
+
+#7. Repeat parts (2.) through (5.) using a support vector machine with a polynomial
+# kernel. Set degree=2.
+
+#original training error rate: 0.3675
+#original test error rate: 0.355
+
+#tuned training error rate: 0.15625
+#tuned test error rate: 0.175
+
+```{r kernel = "polynomial"}
+#running SVM model again, but for kernel = "polynomial"
+set.seed(123)
+svm.polynomial <- svm(Purchase~., data=train_df, kernel = "polynomial", degree = 2, cost = 0.01)
+summary(svm.polynomial)
+
+#prediction
+pred.polynomial.train <- predict(svm.polynomial, train_df)
+pred.polynomial.test <- predict(svm.polynomial, test_df)
+
+#CONFUSION MATRIX FOR initial prediction
+confmatrix.polynomial.train = table(Predicted = pred.polynomial.train, 
+                                Actual = train_df$Purchase)
+
+confmatrix.polynomial.test = table(Predicted = pred.polynomial.test, 
+                               Actual = test_df$Purchase)
+
+# accuracy for training data
+(sum(diag(confmatrix.polynomial.train))) / sum(confmatrix.polynomial.train)
+
+#accuracy for test data
+(sum(diag(confmatrix.polynomial.test))) / sum(confmatrix.polynomial.test)
+
+# ______________________TUNE polynomial_______________________
+
+#tune function again. HELP
+set.seed(123)
+tunesvm.polynomial <- tune(svm, Purchase~., data = train_df, kernel = "polynomial",
+                       ranges = list(cost = seq(0.01,10, 0.1)))
+
+## Best SVM Model ##
+svm.polynomial.tune <- tunesvm.polynomial$best.model
+summary(svm.polynomial.tune)
+
+# prediction for training data set
+bestpred.polynomial.train <- predict(svm.polynomial.tune, train_df)
+
+# confusion matrix for training error rate
+confmatrix.polynomial.train.tuned <- table(Predicted = bestpred.polynomial.train, 
+                                       Actual = train_df$Purchase)
+confmatrix.polynomial.train.tuned
+
+# accuracy for training data
+(sum(diag(confmatrix.polynomial.train.tuned))) / sum(confmatrix.polynomial.train.tuned)
+
+#prediction for test data
+bestpred.polynomial.test <- predict(svm.polynomial.tune, test_df)
+
+# confusion matrix for test error data
+confmatrix.polynomial.test.tuned <- table(Predicted = bestpred.polynomial.test, 
+                                      Actual = test_df$Purchase)
+confmatrix.polynomial.test.tuned
+
+# accuracy for test data
+(sum(diag(confmatrix.polynomial.test.tuned))) / sum(confmatrix.polynomial.test.tuned)
+
+```
+
+#8. Overall, which approach seems to give the best results on this data?
+Summary:
+1) Linear - Original: Train error rate: 0.17625
+                      Test error rate: 0.155
+            Tuned: Train error rate: 0.16875
+                   Test error rate: 0.165
+
+2) Radial - Original: Train error rate: 0.39
+                      Test error rate: 0.39
+            Tuned: Train error rate: 0.16
+                  Test error rate: 0.165
+
+3) Polynomial - Original: Train error rate: 0.37375
+                          Test error rate: 0.355
+                Tuned: Train error rate: 0.15625
+                       Test error rate: 0.175
+
+Based on the error rates alone, it looks like the non-tuned linear model seems like the best approach because it has the lowest test error
+rate. But the tuned linear model and the tuned radial model are close seconds, as they also have low test error rates.
